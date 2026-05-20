@@ -85,6 +85,7 @@ export default function VideoGenPage() {
   const [previewImg, setPreviewImg]       = useState('');
   const [showPreview, setShowPreview]     = useState(false);
   const [activeTab, setActiveTab]         = useState<'generate'|'history'>('generate');
+  const [isOptimizing, setIsOptimizing]   = useState(false);
   const [history, setHistory]             = useState<HistoryRecord[]>(loadHistory);
   const [urlStatus, setUrlStatus]         = useState<Record<string, 'ok'|'expired'|'checking'>>({});
 
@@ -146,6 +147,22 @@ export default function VideoGenPage() {
     : isHappyHorse ? hhCreditPerSec * hhDuration
     : isSeedance ? 6 * sdDuration
     : 6 * duration;
+
+  // ===== AI 优化提示词 =====
+  const handleOptimizePrompt = async () => {
+    if (!prompt.trim()) return;
+    setIsOptimizing(true);
+    try {
+      // TODO: 实现具体优化逻辑，模型优先级：claude-sonnet-4-20250514 > gpt-4o > gemini-1.5-pro
+      // 占位逻辑，待填充
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      // setPrompt(optimizedPrompt);
+    } catch (e) {
+      console.error('AI优化提示词失败', e);
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
 
   // ===== 图片压缩 & 上传图床 =====
   const resizeToBlob = (file: File, maxPx = 1024): Promise<Blob> =>
@@ -709,16 +726,34 @@ export default function VideoGenPage() {
           {/* 提示词 */}
           <Card color="app-yellow" type="default">
             <div style={{ fontWeight: 800, color: '#794f27', fontSize: 15, marginBottom: 10 }}>✏️ 提示词</div>
-            <textarea
-              value={prompt} onChange={e => setPrompt(e.target.value)}
-              placeholder="描述你想要生成的视频内容，支持中英文&#10;例：一只猫在草地上奔跑，阳光明媚，慢镜头"
-              style={{
-                width: '100%', minHeight: 100, padding: '10px 12px', borderRadius: 10,
-                border: '2px solid #c4b89e', background: '#faf9f4', color: '#794f27',
-                fontSize: 14, fontFamily: 'inherit', resize: 'vertical', outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
+            <div style={{ position: 'relative' }}>
+              <textarea
+                value={prompt} onChange={e => setPrompt(e.target.value)}
+                placeholder="描述你想要生成的视频内容，支持中英文&#10;例：一只猫在草地上奔跑，阳光明媚，慢镜头"
+                style={{
+                  width: '100%', minHeight: 100, padding: '10px 40px 10px 12px', borderRadius: 10,
+                  border: '2px solid #c4b89e', background: '#faf9f4', color: '#794f27',
+                  fontSize: 14, fontFamily: 'inherit', resize: 'vertical', outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+              <button
+                onClick={handleOptimizePrompt}
+                disabled={isOptimizing || !prompt.trim()}
+                title="AI 优化提示词"
+                style={{
+                  position: 'absolute', top: 8, right: 8,
+                  width: 28, height: 28, borderRadius: 8,
+                  background: isOptimizing ? '#e6f9f6' : prompt.trim() ? 'linear-gradient(135deg, #19c8b9, #6fba2c)' : '#e8e4d8',
+                  border: 'none', cursor: isOptimizing || !prompt.trim() ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 14, transition: 'all 0.2s', opacity: isOptimizing || !prompt.trim() ? 0.6 : 1,
+                  boxShadow: prompt.trim() && !isOptimizing ? '0 2px 6px rgba(25,200,185,0.35)' : 'none',
+                }}
+              >
+                {isOptimizing ? '⏳' : '✨'}
+              </button>
+            </div>
           </Card>
 
           {/* Seedance 参数：宽高比 + 分辨率 + 时长 + 音频 + 种子 + 复选框 */}
