@@ -137,6 +137,7 @@ export default function ImageGenPage() {
   const [googleImageSearch, setGoogleImageSearch] = useState(false);
   const [selectedImages, setSelectedImages] = useState<Set<number>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
@@ -222,6 +223,41 @@ export default function ImageGenPage() {
 
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = () => setIsDragging(false);
+
+  // ===== AI 优化提示词 =====
+  const handleOptimizePrompt = async () => {
+    if (!prompt.trim() || isOptimizing) return;
+    setIsOptimizing(true);
+    const token = localStorage.getItem('access_token') || '';
+    const models = ['qwen3.6-35b-a3b', 'qwen3.6-plus', 'mimo-v2.5', 'qwen3.6-27b', 'kimi-k2.5'];
+    for (const m of models) {
+      try {
+        const res = await fetch('https://www.vivaapi.cn/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            model: m,
+            max_tokens: 800,
+            messages: [
+              {
+                role: 'system',
+                content: '你是一个专业的AI图像生成提示词优化专家。请将用户输入的提示词优化为更具体、更富有细节的英文提示词，适合用于AI图像生成模型。要求：1. 输出纯英文提示词；2. 增加画风、光线、构图、细节描述；3. 保持原始意图不变；4. 直接输出优化后的提示词，不要解释。',
+              },
+              {
+                role: 'user',
+                content: `请优化以下图像生成提示词：\n${prompt.trim()}`,
+              },
+            ],
+          }),
+        });
+        if (!res.ok) continue;
+        const data = await res.json();
+        const optimized = data?.choices?.[0]?.message?.content?.trim();
+        if (optimized) { setPrompt(optimized); break; }
+      } catch { /* try next model */ }
+    }
+    setIsOptimizing(false);
+  };
 
   // ===== 生成逻辑 =====
   const startPolling = (localId: string, tid: string, useFallback = false, origPrompt = '', origSize = '9:16', origResolution = '1k') => {
@@ -630,15 +666,21 @@ export default function ImageGenPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <span style={{ fontWeight: 800, color: '#794f27', fontSize: 15 }}>✍️ 提示词</span>
               <button
-                title="AI一键优化提示词（即将上线）"
+                title="AI一键优化提示词"
+                onClick={handleOptimizePrompt}
+                disabled={isOptimizing || !prompt.trim()}
                 style={{
-                  background: '#e6f9f6', border: '1.5px solid #19c8b9',
-                  borderRadius: 20, padding: '3px 10px', cursor: 'pointer',
-                  color: '#19c8b9', fontSize: 12, fontWeight: 700,
+                  background: isOptimizing ? '#f0f0f0' : '#e6f9f6',
+                  border: `1.5px solid ${isOptimizing ? '#c4b89e' : '#19c8b9'}`,
+                  borderRadius: 20, padding: '3px 10px',
+                  cursor: isOptimizing || !prompt.trim() ? 'not-allowed' : 'pointer',
+                  color: isOptimizing ? '#9f927d' : '#19c8b9',
+                  fontSize: 12, fontWeight: 700,
                   display: 'flex', alignItems: 'center', gap: 4,
+                  opacity: !prompt.trim() ? 0.5 : 1,
                 }}
               >
-                ✨ AI优化 <span style={{ fontSize: 10, color: '#9f927d' }}>即将上线</span>
+                {isOptimizing ? '⏳ 优化中...' : '✨ AI优化'}
               </button>
             </div>
             <textarea
