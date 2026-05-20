@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ViVa AI 模型接入测试工具</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f1117; color: #e2e8f0; padding: 20px; }
+  h1 { text-align: center; margin-bottom: 8px; font-size: 22px; color: #7c3aed; }
+  .subtitle { text-align: center; color: #94a3b8; margin-bottom: 20px; font-size: 13px; }
+  .config-box { background: #1e2130; border: 1px solid #334155; border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+  .config-box label { display: block; margin-bottom: 6px; font-size: 13px; color: #94a3b8; }
+  .config-box input { width: 100%; background: #0f1117; border: 1px solid #334155; color: #e2e8f0; padding: 8px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 10px; }
+  .btn { padding: 8px 18px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .btn-primary { background: #7c3aed; color: white; }
+  .btn-primary:hover { background: #6d28d9; }
+  .btn-danger { background: #dc2626; color: white; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .section-title { font-size: 15px; font-weight: 700; color: #c4b5fd; margin: 18px 0 10px; border-left: 3px solid #7c3aed; padding-left: 10px; }
+  .model-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .model-card { background: #1e2130; border: 1px solid #334155; border-radius: 8px; padding: 12px; }
+  .model-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .model-name { font-weight: 600; font-size: 13px; }
+  .model-id { font-size: 11px; color: #64748b; font-family: monospace; }
+  .status { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 2px 8px; border-radius: 20px; }
+  .status-pending { background: #1e293b; color: #64748b; }
+  .status-testing { background: #1e3a5f; color: #60a5fa; }
+  .status-ok { background: #14532d; color: #4ade80; }
+  .status-error { background: #450a0a; color: #f87171; }
+  .status-warn { background: #431407; color: #fb923c; }
+  .result-detail { margin-top: 6px; font-size: 11px; color: #94a3b8; word-break: break-all; max-height: 60px; overflow-y: auto; }
+  .result-detail.error { color: #f87171; }
+  .result-detail.ok { color: #4ade80; }
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .progress-bar { height: 4px; background: #1e293b; border-radius: 2px; margin-bottom: 16px; }
+  .progress-fill { height: 100%; background: #7c3aed; border-radius: 2px; transition: width 0.3s; }
+  .summary { background: #1e2130; border: 1px solid #334155; border-radius: 8px; padding: 14px; margin-bottom: 16px; display: flex; gap: 20px; flex-wrap: wrap; }
+  .summary-item { text-align: center; }
+  .summary-item .num { font-size: 24px; font-weight: 700; }
+  .summary-item .lbl { font-size: 11px; color: #94a3b8; }
+  .num-total { color: #e2e8f0; }
+  .num-ok { color: #4ade80; }
+  .num-err { color: #f87171; }
+  .num-warn { color: #fb923c; }
+  .num-skip { color: #64748b; }
+</style>
+</head>
+<body>
+<h1>🧪 ViVa AI 模型接入测试工具</h1>
+<p class="subtitle">对每个模型发送最小测试请求，验证 API 接入和参数是否正确</p>
+
+<div class="config-box">
+  <label>Base URL</label>
+  <input id="baseUrl" value="https://www.vivaapi.cn" />
+  <label>API Key</label>
+  <input id="apiKey" type="password" placeholder="输入你的 API Key" />
+  <div style="display:flex;gap:10px;margin-top:4px">
+    <button class="btn btn-primary" onclick="runAll()">▶ 全部测试</button>
+    <button class="btn btn-primary" style="background:#0369a1" onclick="runSelected()">☑ 测试选中</button>
+    <button class="btn" style="background:#334155" onclick="selectAll(true)">全选</button>
+    <button class="btn" style="background:#334155" onclick="selectAll(false)">全不选</button>
+  </div>
+</div>
+
+<div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+
+<div class="summary" id="summary">
+  <div class="summary-item"><div class="num num-total" id="s-total">0</div><div class="lbl">总数</div></div>
+  <div class="summary-item"><div class="num num-ok" id="s-ok">0</div><div class="lbl">✅ 通过</div></div>
+  <div class="summary-item"><div class="num num-warn" id="s-warn">0</div><div class="lbl">⚠️ 警告</div></div>
+  <div class="summary-item"><div class="num num-err" id="s-err">0</div><div class="lbl">❌ 失败</div></div>
+  <div class="summary-item"><div class="num num-skip" id="s-skip">0</div><div class="lbl">⏭ 跳过</div></div>
+</div>
+
+<div id="sections"></div>
+
+<script>
+// ===== 模型定义（与 index.tsx 保持一致）=====
+const TESTS = [
+  // 图像模型 - 发送图像生成请求
+  { cat: '图像模型', id: 'gemini-2.5-flash-image', name: 'Gemini-2.5-Flash-Image', type: 'image' },
+  { cat: '图像模型', id: 'gemini-3.1-flash-image-preview', name: 'Gemini-3.1-Flash-Image', type: 'image' },
+  { cat: '图像模型', id: 'gemini-3-pro-image-preview', name: 'Gemini-3-Pro-Image', type: 'image' },
+  { cat: '图像模型', id: 'kling-image-o1', name: 'Kling Image O1', type: 'image_kling' },
+  { cat: '图像模型', id: 'gpt-image-1.5-all', name: 'GPT Image 1.5', type: 'image_openai' },
+  { cat: '图像模型', id: 'gpt-image-2', name: 'GPT IMAGE 2', type: 'image_openai' },
+  { cat: '图像模型', id: 'gpt-image-2-all', name: 'GPT Image 2 ALL', type: 'image_openai' },
+  { cat: '图像模型', id: 'grok-4-image', name: 'Grok 4 Image', type: 'image_openai' },
+  { cat: '图像模型', id: 'grok-imagine-image', name: 'Grok Imagine Image', type: 'image_openai' },
+  { cat: '图像模型', id: 'doubao-seedream-5-0-260128', name: 'Doubao Seedream 5.0', type: 'image_openai' },
+
+  // 视频模型 - 只验证接口是否接受请求（不等待结果）
+  { cat: '视频模型', id: 'happyhorse-1.0', name: 'Happy Horse-1.0', type: 'video' },
+  { cat: '视频模型', id: 'veo3.1-fast', name: 'veo3.1-fast', type: 'video' },
+  { cat: '视频模型', id: 'veo3.1', name: 'veo3.1', type: 'video' },
+  { cat: '视频模型', id: 'grok-video-3', name: 'Grok Video 3', type: 'video' },
+  { cat: '视频模型', id: 'kling-motion-control', name: 'KLING CONTROL', type: 'video_kling' },
+  { cat: '视频模型', id: 'kling-avatar-image2video', name: 'KLING AVATAR', type: 'video_kling' },
+  { cat: '视频模型', id: 'sora-2-all', name: 'Sora-2-All', type: 'video' },
+  { cat: '视频模型', id: 'sora-2', name: 'Sora-2', type: 'video' },
+  { cat: '视频模型', id: 'sora-2-pro-all', name: 'Sora-2-Pro-All', type: 'video' },
+
+  // 聊天模型 - 发送简单 chat completion
+  { cat: '聊天模型', id: 'gemini-3-flash-preview', name: 'Gemini-3-Flash-Preview', type: 'chat' },
+  { cat: '聊天模型', id: 'gemini-3.1-flash-lite-preview', name: 'Gemini-3.1-Flash-Lite', type: 'chat' },
+  { cat: '聊天模型', id: 'gemini-3.1-pro-preview', name: 'Gemini-3.1-Pro', type: 'chat' },
+  { cat: '聊天模型', id: 'gpt-5.4', name: 'GPT 5.4', type: 'chat' },
+  { cat: '聊天模型', id: 'gpt-5.4-mini', name: 'GPT 5.4 Mini', type: 'chat' },
+  { cat: '聊天模型', id: 'gpt-5.4-nano', name: 'GPT 5.4 Nano', type: 'chat' },
+  { cat: '聊天模型', id: 'grok-4.2', name: 'Grok-4.2', type: 'chat' },
+  { cat: '聊天模型', id: 'grok-4.2-normal', name: 'Grok-4.2-normal', type: 'chat' },
+
+  // 音频模型
+  { cat: '音频模型', id: 'gemini-2.5-pro-preview-tts', name: 'Gemini 2.5 Pro TTS', type: 'audio_tts' },
+];
+
+const results = {};
+let running = false;
+
+// ===== 渲染 UI =====
+function render() {
+  const cats = [...new Set(TESTS.map(t => t.cat))];
+  const container = document.getElementById('sections');
+  container.innerHTML = '';
+  cats.forEach(cat => {
+    const items = TESTS.filter(t => t.cat === cat);
+    const title = document.createElement('div');
+    title.className = 'section-title';
+    title.textContent = cat;
+    container.appendChild(title);
+    const grid = document.createElement('div');
+    grid.className = 'model-grid';
+    items.forEach(t => {
+      const card = document.createElement('div');
+      card.className = 'model-card';
+      card.id = 'card-' + t.id;
+      const r = results[t.id] || {};
+      const statusCls = r.status === 'ok' ? 'status-ok' : r.status === 'error' ? 'status-error' : r.status === 'testing' ? 'status-testing' : r.status === 'warn' ? 'status-warn' : 'status-pending';
+      const statusTxt = r.status === 'ok' ? '✅ 通过' : r.status === 'error' ? '❌ 失败' : r.status === 'testing' ? '⏳ 测试中' : r.status === 'warn' ? '⚠️ 警告' : '— 待测';
+      card.innerHTML = `
+        <div class="model-header">
+          <div>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="chk-${t.id}" checked style="cursor:pointer">
+              <span class="model-name">${t.name}</span>
+            </label>
+            <div class="model-id">${t.id}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+            <span class="status ${statusCls}">${statusTxt}</span>
+            ${r.time ? `<span style="font-size:10px;color:#64748b">${r.time}ms</span>` : ''}
+          </div>
+        </div>
+        <div class="result-detail ${r.status === 'error' ? 'error' : r.status === 'ok' || r.status === 'warn' ? 'ok' : ''}" id="detail-${t.id}">${r.msg || ''}</div>
+      `;
+      grid.appendChild(card);
+    });
+    container.appendChild(grid);
+  });
+  updateSummary();
+}
+
+function updateSummary() {
+  const vals = Object.values(results);
+  document.getElementById('s-total').textContent = TESTS.length;
+  document.getElementById('s-ok').textContent = vals.filter(r => r.status === 'ok').length;
+  document.getElementById('s-warn').textContent = vals.filter(r => r.status === 'warn').length;
+  document.getElementById('s-err').textContent = vals.filter(r => r.status === 'error').length;
+  document.getElementById('s-skip').textContent = TESTS.length - vals.length;
+}
+
+function updateCard(id, status, msg, time) {
+  results[id] = { status, msg, time };
+  const statusCls = status === 'ok' ? 'status-ok' : status === 'error' ? 'status-error' : status === 'testing' ? 'status-testing' : status === 'warn' ? 'status-warn' : 'status-pending';
+  const statusTxt = status === 'ok' ? '✅ 通过' : status === 'error' ? '❌ 失败' : status === 'testing' ? '⏳ 测试中' : status === 'warn' ? '⚠️ 警告' : '— 待测';
+  const card = document.getElementById('card-' + id);
+  if (!card) return;
+  const statusEl = card.querySelector('.status');
+  if (statusEl) { statusEl.className = 'status ' + statusCls; statusEl.textContent = statusTxt; }
+  const header = card.querySelector('.model-header > div:last-child');
+  if (header && time) {
+    const timeEl = header.querySelector('span:last-child');
+    if (timeEl && timeEl.textContent !== statusTxt) timeEl.textContent = time + 'ms';
+    else header.innerHTML += `<span style="font-size:10px;color:#64748b">${time}ms</span>`;
+  }
+  const detail = document.getElementById('detail-' + id);
+  if (detail) {
+    detail.textContent = msg || '';
+    detail.className = 'result-detail ' + (status === 'error' ? 'error' : (status === 'ok' || status === 'warn') ? 'ok' : '');
+  }
+  updateSummary();
+}
+
+// ===== 测试逻辑 =====
+async function testModel(t) {
+  const baseUrl = document.getElementById('baseUrl').value.trim().replace(/\/$/, '');
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey) { updateCard(t.id, 'error', '请先输入 API Key', 0); return; }
+
+  updateCard(t.id, 'testing', '请求中...', 0);
+  const start = Date.now();
+
+  try {
+    let res, data;
+
+    if (t.type === 'chat') {
+      // OpenAI 兼容 chat completion
+      res = await fetch(`${baseUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: t.id,
+          messages: [{ role: 'user', content: '你好，回复"OK"即可' }],
+          max_tokens: 10,
+          stream: false
+        })
+      });
+      data = await res.json();
+      const elapsed = Date.now() - start;
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${data.error?.message || JSON.stringify(data.error) || res.statusText}`);
+      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+      const reply = data.choices?.[0]?.message?.content || '';
+      if (!reply) { updateCard(t.id, 'warn', `响应成功但内容为空。finish_reason: ${data.choices?.[0]?.finish_reason}`, elapsed); }
+      else { updateCard(t.id, 'ok', `回复: "${reply.slice(0, 80)}"`, elapsed); }
+
+    } else if (t.type === 'image') {
+      // Gemini 图像生成（OpenAI 格式）
+      res = await fetch(`${baseUrl}/v1/images/generations`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: t.id,
+          prompt: 'a red circle, simple test',
+          n: 1,
+          size: '1024x1024',
+          response_format: 'url'
+        })
+      });
+      data = await res.json();
+      const elapsed = Date.now() - start;
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${data.error?.message || JSON.stringify(data.error) || res.statusText}`);
+      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+      const imgUrl = data.data?.[0]?.url || data.data?.[0]?.b64_json;
+      if (!imgUrl) { updateCard(t.id, 'warn', `API 响应成功但无图片 URL。响应键: ${Object.keys(data).join(', ')}`, elapsed); }
+      else { updateCard(t.id, 'ok', `图片已生成: ${String(imgUrl).slice(0, 80)}...`, elapsed); }
+
+    } else if (t.type === 'image_openai') {
+      res = await fetch(`${baseUrl}/v1/images/generations`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: t.id,
+          prompt: 'a blue square, simple test',
+          n: 1,
+          size: '1024x1024'
+        })
+      });
+      data = await res.json();
+      const elapsed = Date.now() - start;
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${data.error?.message || JSON.stringify(data.error) || res.statusText}`);
+      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+      const imgUrl = data.data?.[0]?.url || data.data?.[0]?.b64_json;
+      if (!imgUrl) { updateCard(t.id, 'warn', `API 响应成功但无图片。响应键: ${Object.keys(data).join(', ')}`, elapsed); }
+      else { updateCard(t.id, 'ok', `图片已生成: ${String(imgUrl).slice(0, 80)}...`, elapsed); }
+
+    } else if (t.type === 'image_kling') {
+      // Kling 图像轮询接口
+      res = await fetch(`${baseUrl}/kling/v1/images/omni-image`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'kling-v2-master',
+          prompt: 'a test circle',
+          n: 1,
+          aspect_ratio: '1:1',
+          image_fidelity: 0.5
+        })
+      });
+      data = await res.json();
+      const elapsed = Date.now() - start;
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${data.message || res.statusText}`);
+      if (data.code !== 0 && data.code !== 200) throw new Error(`API Code ${data.code}: ${data.message}`);
+      const taskId = data.data?.task_id;
+      if (!taskId) updateCard(t.id, 'warn', `接口连通但未返回 task_id。响应: ${JSON.stringify(data).slice(0, 100)}`, elapsed);
+      else updateCard(t.id, 'ok', `任务已创建，task_id: ${taskId}（轮询需单独等待）`, elapsed);
+
+    } else if (t.type === 'video') {
+      // 通用视频接口
+      res = await fetch(`${baseUrl}/v1/video/generate`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: t.id,
+          prompt: 'a simple test animation',
+          duration: 4,
+          aspect_ratio: '16:9'
+        })
+      });
+      data = await res.json();
+      const elapsed = Date.now() - start;
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${data.error?.message || data.message || res.statusText}`);
+      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+      const taskId = data.id || data.task_id || data.data?.task_id;
+      if (!taskId) updateCard(t.id, 'warn', `接口连通但无 task_id。响应键: ${Object.keys(data).join(', ')}`, elapsed);
+      else updateCard(t.id, 'ok', `任务已提交，task_id: ${taskId}`, elapsed);
+
+    } else if (t.type === 'video_kling') {
+      res = await fetch(`${baseUrl}/kling/v1/videos/image2video`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'kling-v2', prompt: 'test', mode: 'std', duration: '5' })
+      });
+      data = await res.json();
+      const elapsed = Date.now() - start;
+      // 即使没有图片也应返回 400 or code error，说明接口通了
+      if (res.status === 401) throw new Error('认证失败：API Key 无效');
+      if (res.status === 404) throw new Error('404：接口路径不存在');
+      if (res.status >= 500) throw new Error(`服务器错误 HTTP ${res.status}`);
+      const taskId = data.data?.task_id;
+      if (taskId) updateCard(t.id, 'ok', `任务已提交，task_id: ${taskId}`, elapsed);
+      else updateCard(t.id, 'warn', `接口通，但需要图片参数。code=${data.code} msg=${data.message || ''}`, elapsed);
+
+    } else if (t.type === 'audio_tts') {
+      res = await fetch(`${baseUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: t.id,
+          messages: [{ role: 'user', content: '你好' }],
+          max_tokens: 200,
+          generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } } }
+        })
+      });
+      data = await res.json();
+      const elapsed = Date.now() - start;
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${data.error?.message || res.statusText}`);
+      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+      const audioPart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+      if (audioPart) updateCard(t.id, 'ok', `音频数据已返回，base64长度: ${audioPart.inlineData.data?.length}`, elapsed);
+      else updateCard(t.id, 'warn', `接口通但无音频 inlineData。keys: ${JSON.stringify(data.candidates?.[0]?.content?.parts?.map(p=>Object.keys(p)))}`, elapsed);
+    }
+  } catch (e) {
+    const elapsed = Date.now() - start;
+    updateCard(t.id, 'error', e.message || String(e), elapsed);
+  }
+}
+
+async function runAll() {
+  if (running) return;
+  running = true;
+  const toTest = TESTS;
+  for (let i = 0; i < toTest.length; i++) {
+    document.getElementById('progressFill').style.width = ((i / toTest.length) * 100) + '%';
+    await testModel(toTest[i]);
+    await new Promise(r => setTimeout(r, 300));
+  }
+  document.getElementById('progressFill').style.width = '100%';
+  running = false;
+}
+
+async function runSelected() {
+  if (running) return;
+  running = true;
+  const toTest = TESTS.filter(t => {
+    const chk = document.getElementById('chk-' + t.id);
+    return chk && chk.checked;
+  });
+  for (let i = 0; i < toTest.length; i++) {
+    document.getElementById('progressFill').style.width = ((i / toTest.length) * 100) + '%';
+    await testModel(toTest[i]);
+    await new Promise(r => setTimeout(r, 300));
+  }
+  document.getElementById('progressFill').style.width = '100%';
+  running = false;
+}
+
+function selectAll(v) {
+  TESTS.forEach(t => {
+    const chk = document.getElementById('chk-' + t.id);
+    if (chk) chk.checked = v;
+  });
+}
+
+// 初始化渲染
+render();
+</script>
+</body>
+</html>

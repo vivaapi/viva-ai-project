@@ -1,0 +1,28 @@
+server {
+    listen 80;
+    server_name your-domain.com;  # 替换为你的域名或服务器IP
+
+    root /var/www/viva-ai/dist;   # 替换为实际dist目录路径
+    index index.html;
+
+    # 支持 Vue/React 单页应用路由（History模式）
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 静态资源缓存
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+    }
+
+    # 禁止访问隐藏文件
+    location ~ /\. {
+        deny all;
+    }
+
+    # 开启 gzip 压缩
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+    gzip_min_length 1000;
+}

@@ -1,0 +1,46 @@
+name: Sync ViVa-AI-v1.0 Upstream
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 每日 UTC 0点（北京时间 8点）自动同步
+  workflow_dispatch:      # 支持手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 下游仓库
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 配置 Git 用户
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: 添加上游仓库
+        run: |
+          git remote add upstream https://github.com/vivaapi/ViVa-AI-v1.0.git || true
+
+      - name: 拉取上游代码
+        run: |
+          git fetch upstream main
+
+      - name: 备份下游专属配置
+        run: |
+          cp src/app_config.ts /tmp/app_config.ts.bak
+
+      - name: 合并上游代码（忽略 app_config.ts 冲突）
+        run: |
+          git merge upstream/main --no-edit -X theirs || true
+          # 恢复下游专属配置，不被上游覆盖
+          cp /tmp/app_config.ts.bak src/app_config.ts
+          git add src/app_config.ts
+          git diff --cached --quiet || git commit -m "chore: 恢复下游站点配置 app_config.ts"
+
+      - name: 推送到下游 main 分支
+        run: |
+          git push origin main
