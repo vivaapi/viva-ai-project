@@ -1,516 +1,520 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Button, Card, Tabs, Divider, Footer, Typewriter, Modal, Input, Collapse, Switch
-} from 'animal-island-ui';
-import 'animal-island-ui/style';
-import type { TabItem } from 'animal-island-ui';
+﻿import React, { useState, useEffect } from 'react';
+import { Button, Card, Divider, Footer, Switch } from 'animal-island-ui';
+import { useNavigate } from 'react-router-dom';
 
-const APP_NAME = 'ViVa AI助手';
-const APP_SLOGAN = '一站式 AI 创作平台';
 const API_BASE = 'http://localhost:8000';
 
 const features = [
-  { icon: '🎨', title: 'AI 文生图', desc: '输入文字描述，秒级生成高质量图片，支持多种艺术风格', color: 'app-green' as const, tab: 'image', cost: 2, unit: '积分/张', badge: '热门' },
-  { icon: '🖼️', title: 'AI 图生图', desc: '上传参考图，智能融合风格，一键生成同风格高质量变体', color: 'app-blue' as const, tab: 'image', cost: 3, unit: '积分/张', badge: '' },
-  { icon: '🎬', title: 'AI 图生视频', desc: '将静态图片转化为流畅自然的动态视频，多种运动效果', color: 'app-orange' as const, tab: 'video', cost: 20, unit: '积分/段', badge: '新上线' },
-  { icon: '✍️', title: 'AI 文生视频', desc: '输入文字脚本，AI全自动生成短视频，支持字幕与配音', color: 'app-red' as const, tab: 'video', cost: 25, unit: '积分/段', badge: '' },
-  { icon: '🎵', title: 'AI 配乐生成', desc: '智能生成背景音乐与音效，多种风格，支持时长定制', color: 'app-yellow' as const, tab: 'audio', cost: 5, unit: '积分/首', badge: '' },
-  { icon: '🗣️', title: 'AI 文字配音', desc: '将文字转为自然语音，多种音色可选，情感表达逼真', color: 'app-purple' as const, tab: 'audio', cost: 3, unit: '积分/分钟', badge: '' },
+  { icon: '🖼️', title: 'AI生图', desc: '支持GPT-Image-2、 Gemini-3.1-Flash-Image、Gemini-3-Pro-Image 等顶级模型', tag: '热门', path: '/image', gradient: 'linear-gradient(135deg, #e8f5e9 0%, #c8f0e4 100%)', border: '#19c8b9' },
+  { icon: '🎬', title: 'AI生视频', desc: '支持Veo 3.1、 Grok 3、Happy Horse-1.0、Seedance 2.0、Omni Flash 等主流模型', tag: '新品', path: '/video', gradient: 'linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%)', border: '#f06292' },
+  { icon: '🎵', title: 'AI配乐', desc: '为视频/图片智能匹配背景音乐，多种曲风一键生成', tag: '开发中', path: '/music', gradient: 'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)', border: '#ce93d8' },
+  { icon: '🎤', title: 'AI配音', desc: '多种音色可选，文字转自然语音，支持多语言', tag: '开发中', path: '/tts', gradient: 'linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%)', border: '#4dd0e1' },
 ];
 
 const plans = [
-  {
-    name: '体验版', price: 19, period: '/月', credits: 100,
-    desc: '适合个人尝鲜', color: 'app-green' as const, hot: false,
-    items: ['文生图 约50张', '图生视频 约5段', 'AI配音 约20分钟', '基础客服支持'],
-  },
-  {
-    name: '专业版', price: 49, period: '/月', credits: 300,
-    desc: '适合设计师/创作者', color: 'app-blue' as const, hot: true,
-    items: ['文生图 约200张', '图生视频 约30段', 'AI配音 约100分钟', '优先队列处理', '在线客服'],
-  },
-  {
-    name: '企业版', price: 199, period: '/月', credits: 1500,
-    desc: '适合团队与企业', color: 'app-orange' as const, hot: false,
-    items: ['文生图 无限张', '图生视频 约300段', '全功能无限制', 'API接口调用', '专属客服'],
-  },
-];
-
-const tabs: TabItem[] = [
-  { key: 'all', label: '🌟 全部' },
-  { key: 'image', label: '🎨 图片' },
-  { key: 'video', label: '🎬 视频' },
-  { key: 'audio', label: '🎵 音频' },
+  { name: '体验版', monthlyPrice: 18, yearlyPrice: 172, yearlyCredits: 2160, credits: 180, features: ['180积分/月', '无积分赠送', '积分有效期1个月', '客服支持'], yearlyFeatures: ['2160积分/年', '无积分赠送', '积分有效期12个月', '客服支持'], highlight: false, color: '#f9f7ef' },
+  { name: '专业版', monthlyPrice: 48, yearlyPrice: 460, yearlyCredits: 6336, credits: 528, features: ['528积分/月', '赠送10%', '积分有效期1个月', '客服支持'], yearlyFeatures: ['6336积分/年', '赠送10%', '积分有效期12个月', '客服支持'], highlight: true, color: '#e8fdf8' },
+  { name: '企业版', monthlyPrice: 188, yearlyPrice: 1805, yearlyCredits: 27324, credits: 2277, features: ['2277积分/月', '赠送15%', '积分有效期2个月', '客服支持'], yearlyFeatures: ['27324积分/年', '赠送15%', '积分有效期12个月', '客服支持'], highlight: false, color: '#f0f4ff' },
 ];
 
 const faqs = [
-  { key: '1', label: '积分是如何消耗的？', children: '每次生成内容消耗对应积分：文生图约2积分/张，图生视频约20积分/段，AI配音约3积分/分钟。积分永久有效，不会过期。' },
-  { key: '2', label: '注册后有免费积分可以使用吗？', children: '注册即送20积分，可免费体验约10张文生图或1段AI配音，无需充值即可开始创作！' },
-  { key: '3', label: '支持哪些格式输出？', children: '图片支持 JPG、PNG、WebP，最高 2048×2048；视频支持 MP4，最高 1080P；音频支持 MP3、WAV 格式。' },
-  { key: '4', label: '生成的内容可以商用吗？', children: '专业版及以上用户生成的内容可用于商业用途，体验版仅限个人非商业使用。详见用户协议。' },
-  { key: '5', label: '如何联系客服？', children: '可通过平台内在线客服联系我们，专业版以上用户享有优先响应。也可发邮件至 support@chuanghui.ai。' },
+  { q: '积分可以退款吗？', a: '7天内未使用可全额退款。' },
+  { q: '价格贵吗？', a: '源头供应，同品质全网最低。' },
+  { q: '模型是最新的吗？', a: '同步官网更新。' },
 ];
-
-const stats = [
-  { num: '10万+', label: '注册用户' },
-  { num: '500万+', label: '已生成作品' },
-  { num: '99.9%', label: '服务可用率' },
-  { num: '6种', label: 'AI创作能力' },
-];
-
-interface UserInfo {
-  id: number;
-  phone: string;
-  credits: number;
-  nickname?: string;
-}
-
-type ModalType = 'login' | 'register' | null;
 
 export default function HomePage() {
-  const [activeTab, setActiveTab] = useState('all');
-  const [modal, setModal] = useState<ModalType>(null);
-  const [loginForm, setLoginForm] = useState({ phone: '', password: '' });
-  const [regForm, setRegForm] = useState({ phone: '', code: '', password: '' });
-  const [regCodeCountdown, setRegCodeCountdown] = useState(0);
-  const [hoveredFeature, setHoveredFeature] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const [showLogin, setShowLogin] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
+  const [showCs, setShowCs] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [user, setUser] = useState<any>(null);
+  const [credits, setCredits] = useState(0);
   const [yearlyBilling, setYearlyBilling] = useState(false);
-  const [loginLoading, setLoginLoading] = useState(false);
-  const [loginError, setLoginError] = useState('');
-  const [regLoading, setRegLoading] = useState(false);
-  const [regError, setRegError] = useState('');
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    const savedUser = localStorage.getItem('user_info');
-    if (token && savedUser) {
-      try { setUserInfo(JSON.parse(savedUser)); } catch { /* ignore */ }
+    const token = localStorage.getItem('token');
+    const userInfo = localStorage.getItem('userInfo');
+    if (token && userInfo) {
+      setUser(JSON.parse(userInfo));
+      fetchCredits(token);
     }
+    const handleScroll = () => setScrolled(window.scrollY > 60);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useEffect(() => {
-    if (regCodeCountdown > 0) {
-      const t = setTimeout(() => setRegCodeCountdown(c => c - 1), 1000);
-      return () => clearTimeout(t);
-    }
-  }, [regCodeCountdown]);
-
-  const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
-  const filteredFeatures = activeTab === 'all' ? features : features.filter(f => f.tab === activeTab);
-  const getPrice = (base: number) => yearlyBilling ? Math.round(base * 0.8) : base;
-
-  const handleLogin = async () => {
-    if (!loginForm.phone || !loginForm.password) { setLoginError('请输入手机号和密码'); return; }
-    setLoginLoading(true);
-    setLoginError('');
+  async function fetchCredits(token: string) {
     try {
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: loginForm.phone, password: loginForm.password }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setLoginError(data.detail || '登录失败，请检查手机号或密码'); return; }
-      localStorage.setItem('access_token', data.access_token);
-      localStorage.setItem('user_info', JSON.stringify(data.user_info));
-      setUserInfo(data.user_info);
-      setModal(null);
-      setLoginForm({ phone: '', password: '' });
-    } catch {
-      setLoginError('网络错误，请检查后端服务是否启动');
-    } finally {
-      setLoginLoading(false);
-    }
-  };
+      const r = await fetch(`${API_BASE}/api/user/credits`, { headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      if (d.credits !== undefined) setCredits(d.credits);
+    } catch {}
+  }
 
-  const handleRegister = async () => {
-    if (!regForm.phone) { setRegError('请输入手机号'); return; }
-    if (!regForm.code) { setRegError('请输入验证码'); return; }
-    if (!regForm.password || regForm.password.length < 8) { setRegError('密码至少8位'); return; }
-    setRegLoading(true);
-    setRegError('');
+  async function sendCode() {
+    if (!phone || phone.length !== 11) { setError('请输入正确的手机号'); return; }
+    setLoading(true); setError('');
     try {
-      const res = await fetch(`${API_BASE}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: regForm.phone, code: regForm.code, password: regForm.password }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setRegError(data.detail || '注册失败，请重试'); return; }
-      localStorage.setItem('access_token', data.access_token);
-      localStorage.setItem('user_info', JSON.stringify(data.user_info));
-      setUserInfo(data.user_info);
-      setModal(null);
-      setRegForm({ phone: '', code: '', password: '' });
-    } catch {
-      setRegError('网络错误，请检查后端服务是否启动');
-    } finally {
-      setRegLoading(false);
-    }
-  };
+      const r = await fetch(`${API_BASE}/api/auth/send-code`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }) });
+      const d = await r.json();
+      if (d.success) { setCodeSent(true); setCountdown(60); const t = setInterval(() => setCountdown(c => { if (c <= 1) { clearInterval(t); return 0; } return c - 1; }), 1000); }
+      else setError(d.message || '发送失败');
+    } catch { setError('网络错误'); } finally { setLoading(false); }
+  }
 
-  const handleSendCode = async () => {
-    if (!regForm.phone || regForm.phone.length < 11) { setRegError('请输入正确的手机号'); return; }
-    setRegError('');
-    setRegCodeCountdown(60);
+  async function handleLogin() {
+    if (!phone || !password) { setError('请填写手机号和密码'); return; }
+    setLoading(true); setError('');
     try {
-      await fetch(`${API_BASE}/api/auth/send-code`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: regForm.phone }),
-      });
-    } catch { /* ignore */ }
-  };
+      const r = await fetch(`${API_BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone, password }) });
+      const d = await r.json();
+      if (d.access_token || d.token) {
+        const token = d.access_token || d.token;
+        const userInfo = d.user_info || d.user;
+        localStorage.setItem('token', token);
+        localStorage.setItem('userInfo', JSON.stringify(userInfo));
+        setUser(userInfo); setCredits(userInfo.credits || 0);
+        setShowLogin(false); setPhone(''); setPassword(''); setError('');
+      } else setError(d.detail || d.message || '登录失败');
+    } catch { setError('网络错误'); } finally { setLoading(false); }
+  }
 
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('user_info');
-    setUserInfo(null);
+  async function handleRegister() {
+    if (!phone || !password) { setError('请填写手机号和密码'); return; }
+    setLoading(true); setError('');
+    try {
+      const r = await fetch(`${API_BASE}/api/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone, password }) });
+      const d = await r.json();
+      if (d.access_token || d.token) {
+        const token = d.access_token || d.token;
+        const userInfo = d.user_info || d.user;
+        localStorage.setItem('token', token);
+        localStorage.setItem('userInfo', JSON.stringify(userInfo));
+        setUser(userInfo); setCredits(userInfo.credits || 0);
+        setShowRegister(false); setPhone(''); setPassword(''); setError('');
+      } else setError(d.detail || d.message || '注册失败');
+    } catch { setError('网络错误'); } finally { setLoading(false); }
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('token'); localStorage.removeItem('userInfo');
+    setUser(null); setCredits(0);
+  }
+
+  const navStyle: React.CSSProperties = {
+    position: 'sticky', top: 0, zIndex: 100,
+    background: scrolled ? 'rgba(248,248,240,0.92)' : '#f8f8f0',
+    backdropFilter: scrolled ? 'blur(12px)' : 'none',
+    borderBottom: scrolled ? '1px solid #e8e4d0' : '1px solid transparent',
+    padding: '0 48px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    transition: 'all 0.3s ease',
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8f8f0', fontFamily: 'Nunito, "Noto Sans SC", sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#f8f8f0', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
-      {/* 顶部导航 */}
-      <nav style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '14px 48px', background: 'rgb(247,243,223)',
-        borderBottom: '2px solid #c4b89e', position: 'sticky', top: 0, zIndex: 100,
-        boxShadow: '0 2px 12px rgba(121,79,39,0.08)',
-      }}>
+      {/* 导航 */}
+      <nav style={navStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 30 }}>🌿</span>
-          <span style={{ fontSize: 22, fontWeight: 900, color: '#794f27', letterSpacing: 1 }}>{APP_NAME}</span>
-          <span style={{
-            fontSize: 10, color: '#19c8b9', marginLeft: 2, padding: '2px 8px',
-            background: '#e6f9f6', borderRadius: 20, border: '1px solid #19c8b9', fontWeight: 800, letterSpacing: 1,
-          }}>BETA</span>
+          <img src='https://api.apifox.com/api/v1/projects/7991410/resources/658368/image-preview' alt='ViVa AI' style={{ height: 44, width: 44, objectFit: 'contain' }} />
+          <span style={{ fontWeight: 900, fontSize: 24, color: '#794f27', letterSpacing: 1 }}>ViVa AI助手</span>
         </div>
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          <Button type="text" onClick={() => scrollTo('features')}>功能</Button>
-          <Button type="text" onClick={() => scrollTo('pricing')}>定价</Button>
-          <Button type="text" onClick={() => scrollTo('faq')}>FAQ</Button>
-          <div style={{ width: 1, height: 20, background: '#c4b89e', margin: '0 8px' }} />
-          {userInfo ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{
-                background: '#e6f9f6', border: '1.5px solid #19c8b9',
-                borderRadius: 20, padding: '4px 14px', color: '#19c8b9', fontWeight: 800, fontSize: 13,
-              }}>
-                {'💎 '}{userInfo.credits ?? 0}{' 积分'}
-              </div>
-              <div style={{
-                background: 'rgb(247,243,223)', border: '1.5px solid #c4b89e',
-                borderRadius: 20, padding: '4px 14px', color: '#794f27', fontWeight: 700, fontSize: 13,
-              }}>
-                {'📱 '}{userInfo.phone ? userInfo.phone.slice(-4).padStart(userInfo.phone.length, '*') : ''}
-              </div>
-              <Button type="text" onClick={() => { window.location.href = '/image'; }}>🎨 开始创作</Button>
-              <Button type="text" onClick={handleLogout} style={{ color: '#9f927d', fontSize: 12 }}>退出</Button>
-            </div>
+        <div style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
+          <a href='#features' style={{ color: '#794f27', textDecoration: 'none', fontSize: 16, fontWeight: 600, padding: '4px 8px', borderRadius: 6, transition: 'background 0.15s, color 0.15s' }} onMouseEnter={e => { (e.target as HTMLElement).style.background='#e8f5f3'; (e.target as HTMLElement).style.color='#19c8b9'; }} onMouseLeave={e => { (e.target as HTMLElement).style.background='transparent'; (e.target as HTMLElement).style.color='#794f27'; }}>功能</a>
+          <a href='#pricing' style={{ color: '#794f27', textDecoration: 'none', fontSize: 16, fontWeight: 600, padding: '4px 8px', borderRadius: 6, transition: 'background 0.15s, color 0.15s' }} onMouseEnter={e => { (e.target as HTMLElement).style.background='#e8f5f3'; (e.target as HTMLElement).style.color='#19c8b9'; }} onMouseLeave={e => { (e.target as HTMLElement).style.background='transparent'; (e.target as HTMLElement).style.color='#794f27'; }}>定价</a>
+          <a href='#gallery' style={{ color: '#794f27', textDecoration: 'none', fontSize: 16, fontWeight: 600, padding: '4px 8px', borderRadius: 6, transition: 'background 0.15s, color 0.15s' }} onMouseEnter={e => { (e.target as HTMLElement).style.background='#e8f5f3'; (e.target as HTMLElement).style.color='#19c8b9'; }} onMouseLeave={e => { (e.target as HTMLElement).style.background='transparent'; (e.target as HTMLElement).style.color='#794f27'; }}>案例</a>
+          <a href='#faq' style={{ color: '#794f27', textDecoration: 'none', fontSize: 16, fontWeight: 600, padding: '4px 8px', borderRadius: 6, transition: 'background 0.15s, color 0.15s' }} onMouseEnter={e => { (e.target as HTMLElement).style.background='#e8f5f3'; (e.target as HTMLElement).style.color='#19c8b9'; }} onMouseLeave={e => { (e.target as HTMLElement).style.background='transparent'; (e.target as HTMLElement).style.color='#794f27'; }}>FAQ</a>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {user ? (
+            <>
+              <span style={{ fontSize: 14, color: '#794f27', background: '#fff8e7', padding: '4px 12px', borderRadius: 20, border: '1px solid #e8d5a0' }}>
+                💰 {credits} 积分
+              </span>
+              <Button size='small' variant='ghost' onClick={() => navigate('/image')} style={{ fontSize: 16 }}>开始创作</Button>
+              <Button size='small' variant='outline' onClick={handleLogout} style={{ fontSize: 16 }}>退出</Button>
+            </>
           ) : (
             <>
-              <Button type="default" onClick={() => { setLoginError(''); setModal('login'); }}>登录</Button>
-              <Button type="primary" onClick={() => { setRegError(''); setModal('register'); }}>免费注册</Button>
+              <Button variant='ghost' onClick={() => { setShowLogin(true); setError(''); }} style={{ fontSize: 15, fontWeight: 600 }}>登录</Button>
+              <Button onClick={() => { setShowRegister(true); setError(''); }} style={{ fontSize: 15, fontWeight: 700 }}>免费注册</Button>
             </>
           )}
         </div>
       </nav>
 
-      {/* Hero 区 */}
+      {/* 系统通知区 */}
       <section style={{
-        textAlign: 'center', padding: '88px 24px 64px',
-        background: 'linear-gradient(155deg, #e6f9f6 0%, #eef5e8 30%, #f0e8d8 70%, #f8f8f0 100%)',
-        position: 'relative', overflow: 'hidden',
+        padding: '10px 48px',
+        background: '#fff8e7',
+        borderBottom: '1px solid #e8d5a0',
+        textAlign: 'center'
       }}>
-        <div style={{ position: 'absolute', top: 30, left: '8%', fontSize: 40, opacity: 0.15 }}>🌸</div>
-        <div style={{ position: 'absolute', top: 60, right: '10%', fontSize: 32, opacity: 0.12 }}>🍃</div>
-        <div style={{ position: 'absolute', bottom: 40, left: '15%', fontSize: 28, opacity: 0.10 }}>⭐</div>
-        <div style={{ position: 'absolute', bottom: 60, right: '8%', fontSize: 36, opacity: 0.12 }}>🌿</div>
-
-        <div style={{
-          display: 'inline-block', fontSize: 12, color: '#19c8b9', fontWeight: 800,
-          marginBottom: 16, letterSpacing: 2, padding: '6px 20px',
-          background: '#e6f9f6', borderRadius: 20, border: '1px solid #b2ece7',
-        }}>
-          🌱 全新上线 · 积分制 · 按需消耗 · 注册送积分
-        </div>
-
-        <Typewriter
-          text={APP_NAME + ' — ' + APP_SLOGAN}
-          speed={45}
-          style={{ fontSize: 46, fontWeight: 900, color: '#794f27', display: 'block', marginBottom: 20, lineHeight: 1.15 }}
-        />
-
-        <p style={{ fontSize: 18, color: '#725d42', maxWidth: 580, margin: '0 auto 16px', lineHeight: 1.85 }}>
-          AI 文生图 · AI 图生视频 · AI 配乐配音
-        </p>
-        <p style={{ fontSize: 14, color: '#9f927d', maxWidth: 440, margin: '0 auto 40px', lineHeight: 1.7 }}>
-          无需订阅，购买积分按量消耗，随用随充，积分永不过期
-        </p>
-
-        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 40 }}>
-          {userInfo ? (
-            <Button type="primary" size="large" onClick={() => { window.location.href = '/image'; }}>🚀 开始创作</Button>
-          ) : (
-            <Button type="primary" size="large" onClick={() => { setRegError(''); setModal('register'); }}>🚀 免费注册领积分</Button>
-          )}
-          <Button type="default" size="large" onClick={() => scrollTo('features')}>✨ 了解全部功能</Button>
-        </div>
-
-        <div style={{
-          display: 'flex', gap: 0, justifyContent: 'center', flexWrap: 'wrap',
-          maxWidth: 640, margin: '0 auto',
-          background: 'rgba(247,243,223,0.8)', borderRadius: 20, border: '1px solid #c4b89e',
-          padding: '20px 32px',
-        }}>
-          {stats.map((s, i) => (
-            <div key={s.label} style={{
-              flex: '1 1 120px', textAlign: 'center', padding: '0 16px',
-              borderRight: i < stats.length - 1 ? '1px solid #e0d4c0' : 'none',
-            }}>
-              <div style={{ fontSize: 22, fontWeight: 900, color: '#19c8b9', lineHeight: 1 }}>{s.num}</div>
-              <div style={{ fontSize: 12, color: '#9f927d', marginTop: 4 }}>{s.label}</div>
-            </div>
-          ))}
+        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 16 }}>📢</span>
+          <span style={{ fontSize: 14, color: '#794f27', fontWeight: 500 }}>
+            系统公告：新用户注册即送10积分，AI生图、AI生视频功能已全面上线！
+          </span>
+          <span style={{ fontSize: 12, color: '#9f927d' }}>2026-05-22</span>
         </div>
       </section>
 
-      <Divider type="wave" style={{ margin: 0 }} />
+      {/* Hero区 */}
+      <section style={{
+        padding: '60px 48px 50px',
+        background: 'linear-gradient(135deg, #f8f8f0 0%, #e8fdf8 40%, #fff8e7 100%)',
+        textAlign: 'center', position: 'relative', overflow: 'hidden'
+      }}>
+        <div style={{ position: 'absolute', top: 20, left: '10%', fontSize: 40, opacity: 0.15, pointerEvents: 'none' }}>🌸</div>
+        <div style={{ position: 'absolute', top: 60, right: '8%', fontSize: 50, opacity: 0.12, pointerEvents: 'none' }}>⭐</div>
+        <div style={{ position: 'absolute', bottom: 30, left: '5%', fontSize: 35, opacity: 0.1, pointerEvents: 'none' }}>🍃</div>
+        <div style={{ maxWidth: 800, margin: '0 auto', position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+          <div style={{ display: 'inline-block', background: 'linear-gradient(90deg, #19c8b9, #794f27)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: 20, fontWeight: 800, padding: '6px 22px', border: '2px solid #19c8b9', borderRadius: 24, letterSpacing: 1 }}>
+            专注稳定生图 / 生视频
+          </div>
+          <h1 style={{ fontSize: 48, fontWeight: 900, color: '#794f27', lineHeight: 1.2, margin: 0 }}>
+            用AI释放你的创意
+          </h1>
+          {/* 核心优势条 */}
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 10,
+            background: 'linear-gradient(90deg, #19c8b9 0%, #2cd9c8 100%)',
+            color: '#fff', padding: '8px 20px', borderRadius: 40,
+            boxShadow: '0 6px 18px rgba(25,200,185,0.3)',
+            fontSize: 14, fontWeight: 600
+          }}>
+            <span style={{ fontSize: 16 }}>🛡️</span>
+            <span>源头供应 · 官方兜底 · 成功率 99%</span>
+          </div>
+        </div>
+      </section>
+
+      <Divider type='leaf' style={{ margin: 0 }} />
 
       {/* 功能区 */}
-      <section id="features" style={{ padding: '64px 48px', maxWidth: 1200, margin: '0 auto' }}>
-        <h2 style={{ textAlign: 'center', fontSize: 30, fontWeight: 900, color: '#794f27', marginBottom: 6 }}>✨ 全套 AI 创作工具</h2>
-        <p style={{ textAlign: 'center', color: '#9f927d', marginBottom: 32, fontSize: 15 }}>覆盖图片、视频、音频多个创作场景，一个平台全搞定</p>
-        <Tabs items={tabs} activeKey={activeTab} onChange={setActiveTab} animated />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: 20, marginTop: 28 }}>
-          {filteredFeatures.map(f => (
-            <div
-              key={f.title}
-              onMouseEnter={() => setHoveredFeature(f.title)}
-              onMouseLeave={() => setHoveredFeature(null)}
-              style={{ transform: hoveredFeature === f.title ? 'translateY(-4px)' : 'translateY(0)', transition: 'transform 0.2s ease' }}
-            >
-              <Card
-                color={f.color}
-                type="default"
-                style={{ cursor: 'pointer', height: '100%', position: 'relative' }}
-                onClick={() => userInfo ? (window.location.href = '/image') : setModal('register')}
-              >
-                {f.badge && (
-                  <div style={{
-                    position: 'absolute', top: 12, right: 12,
-                    fontSize: 10, fontWeight: 800, color: '#fff',
-                    background: f.badge === '热门' ? '#e05a5a' : '#19c8b9',
-                    padding: '2px 8px', borderRadius: 10,
-                  }}>{f.badge}</div>
-                )}
-                <div style={{ fontSize: 42, marginBottom: 10 }}>{f.icon}</div>
-                <div style={{ fontSize: 17, fontWeight: 800, color: '#794f27', marginBottom: 6 }}>{f.title}</div>
-                <div style={{ color: '#725d42', fontSize: 14, lineHeight: 1.65, marginBottom: 14 }}>{f.desc}</div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{
-                    fontSize: 12, color: '#9f927d', background: 'rgba(255,255,255,0.6)',
-                    padding: '3px 10px', borderRadius: 20, border: '1px dashed #c4b89e',
-                  }}>
-                    {'💎 '}{f.cost}{' '}{f.unit}
-                  </div>
-                  <Button type="primary" size="small" onClick={(e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    userInfo ? (window.location.href = '/image') : setModal('register');
-                  }}>
-                    立即体验
-                  </Button>
+      <section id='features' style={{ padding: '48px 48px 68px', background: '#f8f8f0' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 32, maxWidth: 1100, margin: '0 auto' }}>
+            {features.map(f => (
+              <div key={f.title} style={{
+                background: '#fff', cursor: 'pointer',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                padding: 0, borderRadius: 20, overflow: 'hidden',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                display: 'flex', minHeight: 180
+              }}
+                onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.transform='translateY(-6px)'; el.style.boxShadow=`0 18px 44px ${f.border}40`; }}
+                onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.transform='translateY(0)'; el.style.boxShadow='0 4px 20px rgba(0,0,0,0.06)'; }}
+                onMouseDown={e => { (e.currentTarget as HTMLElement).style.transform='scale(0.98)'; }}
+                onMouseUp={e => { (e.currentTarget as HTMLElement).style.transform='translateY(-6px)'; }}
+                onClick={() => {
+                  if (!user) { setShowRegister(true); return; }
+                  if (f.tag === '开发中') { alert('该功能正在开发中，敬请期待！'); return; }
+                  navigate(f.path);
+                }}>
+                {/* 左侧图标区 */}
+                <div style={{
+                  flex: '0 0 140px', background: f.gradient,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  position: 'relative', overflow: 'hidden'
+                }}>
+                  <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: f.border, opacity: 0.25, filter: 'blur(12px)' }} />
+                  <div style={{ fontSize: 56, position: 'relative', zIndex: 1 }}>{f.icon}</div>
                 </div>
-              </Card>
-            </div>
-          ))}
+                {/* 右侧内容区 */}
+                <div style={{ flex: 1, padding: '28px 32px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <span style={{ fontWeight: 800, fontSize: 22, color: '#3d2a14' }}>{f.title}</span>
+                    {f.tag && <span style={{ fontSize: 11, background: f.tag === '开发中' ? '#999' : f.border, color: '#fff', padding: '3px 10px', borderRadius: 10, fontWeight: 700 }}>{f.tag}</span>}
+                  </div>
+                  <p style={{ color: '#6b5a47', fontSize: 14, lineHeight: 1.7, margin: 0 }}>{f.desc}</p>
+                  {f.tag !== '开发中' && <div style={{ marginTop: 14, fontSize: 13, color: f.border, fontWeight: 700 }}>立即体验 →</div>}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      <Divider type="leaf" style={{ margin: 0 }} />
+      <Divider type='leaf' style={{ margin: 0 }} />
 
       {/* 定价区 */}
-      <section id="pricing" style={{ padding: '64px 48px', background: 'rgb(247,243,223)' }}>
+      <section id='pricing' style={{ padding: '68px 48px', background: 'rgb(247,243,223)' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <h2 style={{ textAlign: 'center', fontSize: 30, fontWeight: 900, color: '#794f27', marginBottom: 6 }}>💰 简单透明的定价</h2>
-          <p style={{ textAlign: 'center', color: '#9f927d', marginBottom: 20, fontSize: 15 }}>注册即送20积分，随时充值，积分永不过期</p>
+
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 36 }}>
             <span style={{ color: !yearlyBilling ? '#794f27' : '#9f927d', fontWeight: !yearlyBilling ? 700 : 400, fontSize: 14 }}>按月付</span>
-            <Switch checked={yearlyBilling} onChange={setYearlyBilling} size="small" />
+            <Switch checked={yearlyBilling} onChange={setYearlyBilling} size='small' />
             <span style={{ color: yearlyBilling ? '#794f27' : '#9f927d', fontWeight: yearlyBilling ? 700 : 400, fontSize: 14 }}>
               按年付
               <span style={{ fontSize: 11, color: '#19c8b9', marginLeft: 6, fontWeight: 800 }}>省20%</span>
             </span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
             {plans.map(p => (
-              <Card key={p.name} color={p.color} type="title" style={{ textAlign: 'center', position: 'relative' }}>
-                {p.hot && (
-                  <div style={{
-                    position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)',
-                    background: 'linear-gradient(90deg, #19c8b9, #11a89b)', color: '#fff',
-                    fontSize: 11, fontWeight: 800, padding: '4px 16px', borderRadius: 20,
-                    boxShadow: '0 3px 8px rgba(25,200,185,0.4)', whiteSpace: 'nowrap',
-                  }}>🔥 最受欢迎</div>
-                )}
-                <div style={{ fontSize: 20, fontWeight: 900, color: '#794f27', marginBottom: 2, marginTop: p.hot ? 8 : 0 }}>{p.name}</div>
-                <div style={{ fontSize: 13, color: '#9f927d', marginBottom: 12 }}>{p.desc}</div>
-                <div style={{ fontSize: 46, fontWeight: 900, color: '#19c8b9', lineHeight: 1, marginBottom: 4 }}>
-                  {'¥'}{getPrice(p.price)}
-                  <span style={{ fontSize: 14, color: '#9f927d', fontWeight: 400 }}>{p.period}</span>
+              <Card key={p.name} style={{
+                background: p.color,
+                border: p.highlight ? '2px solid #19c8b9' : '1px solid #e8e4d0',
+                position: 'relative', padding: 28
+              }}>
+                {p.highlight && <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: '#19c8b9', color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 16px', borderRadius: 20 }}>最受欢迎</div>}
+                <div style={{ fontWeight: 800, fontSize: 18, color: '#794f27', marginBottom: 8 }}>{p.name}</div>
+                <div style={{ marginBottom: 4 }}>
+                  <span style={{ fontSize: 36, fontWeight: 900, color: '#19c8b9' }}>¥{yearlyBilling ? p.yearlyPrice : p.monthlyPrice}</span>
+                  <span style={{ fontSize: 13, color: '#9f927d' }}>{yearlyBilling ? '/年' : '/月'}</span>
                 </div>
-                {yearlyBilling && (
-                  <div style={{ fontSize: 12, color: '#9f927d', textDecoration: 'line-through', marginBottom: 2 }}>
-                    {'原价 ¥'}{p.price}{'/月'}
-                  </div>
-                )}
-                <div style={{
-                  color: '#725d42', fontSize: 13, margin: '10px 0 16px', padding: '8px 0',
-                  borderTop: '1px dashed #c4b89e', borderBottom: '1px dashed #c4b89e', fontWeight: 700,
-                }}>
-                  {'每月 '}{p.credits}{' 积分'}
-                </div>
-                {p.items.map(item => (
-                  <div key={item} style={{
-                    color: '#725d42', fontSize: 13, padding: '4px 0',
-                    display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-start', paddingLeft: 16,
-                  }}>
-                    <span style={{ color: '#19c8b9', fontWeight: 900, fontSize: 15 }}>✓</span> {item}
-                  </div>
-                ))}
-                <div style={{ marginTop: 20 }}>
-                  <Button type="primary" block onClick={() => userInfo ? alert('充值功能即将上线！') : setModal('register')}>
-                    {p.hot ? '🚀 立即订阅' : '立即订阅'}
-                  </Button>
-                </div>
+                {yearlyBilling && <div style={{ fontSize: 12, color: '#19c8b9', marginBottom: 16 }}>月均 ¥{(p.yearlyPrice / 12).toFixed(1)} · 共 {p.yearlyCredits} 积分/年</div>}
+                {!yearlyBilling && <div style={{ height: 20, marginBottom: 16 }} />}
+                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px' }}>
+                  {(yearlyBilling ? p.yearlyFeatures : p.features).map(feat => (
+                    <li key={feat} style={{ padding: '5px 0', fontSize: 13, color: '#794f27', display: 'flex', gap: 8 }}>
+                      <span style={{ color: '#19c8b9' }}>✓</span> {feat}
+                    </li>
+                  ))}
+                </ul>
+                <Button fullWidth onClick={() => user ? undefined : setShowRegister(true)}>立即订购</Button>
               </Card>
             ))}
           </div>
         </div>
       </section>
 
-      <Divider type="wave" style={{ margin: 0 }} />
+      <Divider type='leaf' style={{ margin: 0 }} />
 
-      {/* FAQ */}
-      <section id="faq" style={{ padding: '64px 48px', maxWidth: 800, margin: '0 auto' }}>
-        <h2 style={{ textAlign: 'center', fontSize: 30, fontWeight: 900, color: '#794f27', marginBottom: 32 }}>🙋 常见问题</h2>
-        <Collapse items={faqs} />
-        <div style={{ textAlign: 'center', marginTop: 32 }}>
-          <p style={{ color: '#9f927d', fontSize: 14, marginBottom: 12 }}>还有其他问题？</p>
-          <Button type="default" onClick={() => setModal('register')}>📬 联系客服</Button>
+      {/* 优秀案例区 */}
+      <section id='gallery' style={{ padding: '68px 48px', background: '#f4f9f8' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <h2 style={{ textAlign: 'center', fontSize: 30, fontWeight: 900, color: '#794f27', marginBottom: 8 }}>🖼️ 精选生成案例</h2>
+          <p style={{ textAlign: 'center', color: '#9f927d', marginBottom: 40, fontSize: 15 }}>点击案例，即可用相同提示词一键生成同款</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
+            {[
+              { prompt: '赛博朋克城市夜景，霓虹灯倒影在雨后街道，高细节，电影感光影，4K', bg: 'linear-gradient(135deg, #0d1b2a 0%, #1b2838 50%, #2a1b3d 100%)', emoji: '🌃', label: '赛博朋克', accent: '#00d4ff' },
+              { prompt: '一只橘猫坐在樱花树下，水彩画风格，柔和色调，温馨氛围，日式插画', bg: 'linear-gradient(135deg, #fce4ec 0%, #fff3e0 100%)', emoji: '🌸', label: '日式水彩', accent: '#f48fb1' },
+              { prompt: '未来科技感机器人，金属质感，蓝色能量光效，概念艺术，超写实渲染', bg: 'linear-gradient(135deg, #0a1628 0%, #1a237e 100%)', emoji: '🤖', label: '科技概念', accent: '#448aff' },
+              { prompt: '古风山水，云雾缭绕，远山如黛，泼墨写意画，高清，中国风', bg: 'linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%)', emoji: '🏔️', label: '国风山水', accent: '#66bb6a' },
+              { prompt: '极简主义海报，几何抽象，莫兰迪色系，现代设计感，高端简洁', bg: 'linear-gradient(135deg, #ede7f6 0%, #e8eaf6 100%)', emoji: '🎨', label: '极简抽象', accent: '#b39ddb' },
+              { prompt: '魔幻森林，发光蘑菇，精灵光点，梦幻氛围，奇幻插画，超详细', bg: 'linear-gradient(135deg, #1b5e20 0%, #0d47a1 100%)', emoji: '🌲', label: '奇幻魔法', accent: '#7c4dff' },
+            ].map((item, idx) => (
+              <div key={idx}
+                onClick={() => {
+                  if (!user) { setShowRegister(true); return; }
+                  navigate(`/image?prompt=${encodeURIComponent(item.prompt)}`);
+                }}
+                onMouseEnter={e => { const el = e.currentTarget; el.style.transform='translateY(-6px)'; el.style.boxShadow='0 16px 40px rgba(0,0,0,0.12)'; }}
+                onMouseLeave={e => { const el = e.currentTarget; el.style.transform='translateY(0)'; el.style.boxShadow='0 4px 16px rgba(0,0,0,0.06)'; }}
+                style={{
+                  background: '#fff', borderRadius: 20, overflow: 'hidden',
+                  cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.06)'
+                }}>
+                {/* 图片区：圆角统一在外层容器控制，背景渐变作为内容背景 */}
+                <div style={{ height: 200, background: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                  <div style={{ fontSize: 80 }}>{item.emoji}</div>
+                  {/* 底部渐变遮罩，让深色背景柔和过渡到白色信息区 */}
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 50, background: 'linear-gradient(transparent, rgba(0,0,0,0.25))' }} />
+                  {/* 标签角标 */}
+                  <div style={{ position: 'absolute', top: 14, left: 14, background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)', borderRadius: 20, padding: '4px 14px', fontSize: 13, fontWeight: 700, color: item.accent, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                    {item.label}
+                  </div>
+                </div>
+                {/* 信息区：独立白色背景，彻底隔离深色图片背景 */}
+                <div style={{ padding: '16px 18px 18px', background: '#fff' }}>
+                  <div style={{ fontSize: 12, color: '#9f927d', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: 12 }}>{item.prompt}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: item.accent, fontSize: 13, fontWeight: 700 }}>
+                    <span>✨</span> 点击生成同款
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <Divider type="sea" />
-      <div style={{ textAlign: 'center', padding: '20px 0 10px', color: '#9f927d', fontSize: 12, lineHeight: 2 }}>
-        {'© 2026 '}{APP_NAME}{' · AI创作平台 · '}
-        <span style={{ cursor: 'pointer' }}>用户协议</span>
-        {' · '}
-        <span style={{ cursor: 'pointer' }}>隐私政策</span>
-        {' · '}
-        <span style={{ cursor: 'pointer' }}>联系我们</span>
-      </div>
-      <Footer type="sea" />
+      <Divider type='leaf' style={{ margin: 0 }} />
 
-      {/* 登录弹窗 */}
-      <Modal open={modal === 'login'} onClose={() => setModal(null)} title="🌿 登录账号">
-        <div style={{ padding: '8px 0 16px' }}>
-          {loginError && (
-            <div style={{
-              background: '#fff0f0', border: '1.5px solid #e05a5a', borderRadius: 10,
-              padding: '8px 14px', color: '#e05a5a', fontSize: 13, marginBottom: 14,
-            }}>
-              {'⚠️ '}{loginError}
-            </div>
-          )}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ color: '#794f27', fontWeight: 700, marginBottom: 6, fontSize: 14 }}>手机号</div>
-            <Input
-              placeholder="请输入手机号"
-              value={loginForm.phone}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLoginForm(f => ({ ...f, phone: e.target.value }))}
-            />
-          </div>
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ color: '#794f27', fontWeight: 700, marginBottom: 6, fontSize: 14 }}>密码</div>
-            <Input
-              placeholder="请输入登录密码"
-              value={loginForm.password}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLoginForm(f => ({ ...f, password: e.target.value }))}
-            />
-          </div>
-          <Button type="primary" block onClick={handleLogin} disabled={loginLoading}>
-            {loginLoading ? '登录中...' : '登录'}
-          </Button>
-          <div style={{ textAlign: 'center', marginTop: 12, color: '#9f927d', fontSize: 13 }}>
-            还没有账号？{' '}
-            <span style={{ color: '#19c8b9', cursor: 'pointer', fontWeight: 700 }} onClick={() => setModal('register')}>
-              免费注册领积分 →
-            </span>
+      {/* FAQ */}
+      <section id='faq' style={{ padding: '68px 48px', background: '#f8f8f0' }}>
+        <div style={{ maxWidth: 760, margin: '0 auto' }}>
+          <h2 style={{ textAlign: 'center', fontSize: 30, fontWeight: 900, color: '#794f27', marginBottom: 36 }}>❓ 常见问题</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {faqs.map((f, idx) => (
+              <details key={idx} style={{ background: '#fff', borderRadius: 12, padding: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+                <summary style={{ padding: '18px 22px', fontSize: 16, fontWeight: 700, color: '#794f27', cursor: 'pointer', listStyle: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {f.q}
+                  <span style={{ fontSize: 12, color: '#19c8b9', transition: 'transform 0.2s' }}>▼</span>
+                </summary>
+                <div style={{ padding: '0 22px 20px', fontSize: 14, color: '#9f927d', lineHeight: 1.8 }}>{f.a}</div>
+              </details>
+            ))}
           </div>
         </div>
-      </Modal>
+      </section>
 
-      {/* 注册弹窗 */}
-      <Modal open={modal === 'register'} onClose={() => setModal(null)} title="🌱 注册新账号">
-        <div style={{ padding: '8px 0 16px' }}>
-          {regError && (
-            <div style={{
-              background: '#fff0f0', border: '1.5px solid #e05a5a', borderRadius: 10,
-              padding: '8px 14px', color: '#e05a5a', fontSize: 13, marginBottom: 14,
-            }}>
-              {'⚠️ '}{regError}
-            </div>
-          )}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ color: '#794f27', fontWeight: 700, marginBottom: 6, fontSize: 14 }}>手机号</div>
-            <Input
-              placeholder="请输入手机号"
-              value={regForm.phone}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRegForm(f => ({ ...f, phone: e.target.value }))}
+      <Footer appName='ViVa AI助手' slogan='一站式AI创作平台' />
+
+      {/* 浮动客服按钮 */}
+      <button
+        onClick={() => setShowCs(true)}
+        title="联系客服"
+        style={{
+          position: 'fixed', bottom: 32, right: 32, zIndex: 500,
+          width: 56, height: 56, borderRadius: '50%',
+          background: '#28B894',
+          border: 'none', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(40,184,148,0.35)',
+          transition: 'transform 0.2s, box-shadow 0.2s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.boxShadow = '0 6px 28px rgba(40,184,148,0.5)'; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(40,184,148,0.35)'; }}
+      >
+        <span style={{ fontSize: 26 }}>💬</span>
+      </button>
+
+      {/* 客服弹窗 */}
+      {showCs && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', zIndex: 600,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }} onClick={(e) => { if (e.target === e.currentTarget) setShowCs(false); }}>
+          <div style={{
+            background: '#fff', borderRadius: 16, padding: '28px',
+            maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+            textAlign: 'center',
+            position: 'relative'
+          }}>
+            <button
+              onClick={() => setShowCs(false)}
+              style={{
+                position: 'absolute', top: 12, right: 12,
+                width: 28, height: 28, borderRadius: '50%',
+                background: '#e53e3e', color: '#fff', border: 'none',
+                fontSize: 16, fontWeight: 700, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                lineHeight: 1,
+                boxShadow: '0 2px 8px rgba(229,62,62,0.3)',
+                transition: 'transform 0.15s'
+              }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.15)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+            >✕</button>
+            <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 800, color: '#794f27' }}>联系客服 09:00-21:00</h3>
+
+            <img
+              src="https://api.apifox.com/api/v1/projects/7991410/resources/658671/image-preview"
+              alt="客服二维码"
+              style={{ width: 220, height: 220, borderRadius: 12, border: '1px solid #f0f0f0' }}
             />
-          </div>
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ color: '#794f27', fontWeight: 700, marginBottom: 6, fontSize: 14 }}>验证码</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Input
-                placeholder="请输入验证码"
-                value={regForm.code}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRegForm(f => ({ ...f, code: e.target.value }))}
-                style={{ flex: 1 }}
-              />
-              <Button
-                type="default"
-                onClick={handleSendCode}
-                disabled={regCodeCountdown > 0}
-                style={{ whiteSpace: 'nowrap', minWidth: 90 }}
-              >
-                {regCodeCountdown > 0 ? `${regCodeCountdown}s` : '发送验证码'}
-              </Button>
-            </div>
-          </div>
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ color: '#794f27', fontWeight: 700, marginBottom: 6, fontSize: 14 }}>密码</div>
-            <Input
-              placeholder="请设置登录密码（至8位）"
-              value={regForm.password}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRegForm(f => ({ ...f, password: e.target.value }))}
-            />
-          </div>
-          <Button type="primary" block onClick={handleRegister} disabled={regLoading}>
-            {regLoading ? '注册中...' : '立即注册领积分'}
-          </Button>
-          <div style={{ textAlign: 'center', marginTop: 12, color: '#9f927d', fontSize: 13 }}>
-            已有账号？{' '}
-            <span style={{ color: '#19c8b9', cursor: 'pointer', fontWeight: 700 }} onClick={() => setModal('login')}>
-              直接登录 →
-            </span>
           </div>
         </div>
-      </Modal>
+      )}
+
+      {/* 登录/注册面板 - 直接内嵌，无动画 */}
+      {(showLogin || showRegister) && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', zIndex: 200,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }} onClick={(e) => { if (e.target === e.currentTarget) { setShowLogin(false); setShowRegister(false); setError(''); } }}>
+          <div style={{
+            background: '#fff', borderRadius: 16, padding: '40px 36px',
+            width: 420, maxWidth: '90vw',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.15)'
+          }}>
+            {/* 关闭按钮 */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
+              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#794f27' }}>
+                {showLogin ? '欢迎回来' : '创建账号'}
+              </h2>
+              <button onClick={() => { setShowLogin(false); setShowRegister(false); setError(''); }}
+                style={{ background: 'none', border: 'none', fontSize: 24, color: '#9f927d', cursor: 'pointer', padding: 0, lineHeight: 1 }}>
+                ×
+              </button>
+            </div>
+
+            {/* 切换标签 */}
+            <div style={{ display: 'flex', gap: 0, marginBottom: 24, borderBottom: '2px solid #f0ebe0' }}>
+              <button onClick={() => { setShowLogin(true); setShowRegister(false); setError(''); }}
+                style={{
+                  flex: 1, padding: '12px 0', border: 'none', background: 'none',
+                  fontSize: 15, fontWeight: showLogin ? 700 : 400,
+                  color: showLogin ? '#19c8b9' : '#9f927d',
+                  borderBottom: showLogin ? '2px solid #19c8b9' : '2px solid transparent',
+                  marginBottom: -2, cursor: 'pointer', transition: 'none'
+                }}>
+                登录
+              </button>
+              <button onClick={() => { setShowLogin(false); setShowRegister(true); setError(''); }}
+                style={{
+                  flex: 1, padding: '12px 0', border: 'none', background: 'none',
+                  fontSize: 15, fontWeight: showRegister ? 700 : 400,
+                  color: showRegister ? '#19c8b9' : '#9f927d',
+                  borderBottom: showRegister ? '2px solid #19c8b9' : '2px solid transparent',
+                  marginBottom: -2, cursor: 'pointer', transition: 'none'
+                }}>
+                注册
+              </button>
+            </div>
+
+            {showLogin ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                <div>
+                  <label style={{ fontSize: 13, color: '#794f27', fontWeight: 600, marginBottom: 8, display: 'block' }}>手机号</label>
+                  <input placeholder='请输入手机号' value={phone} onChange={e => setPhone(e.target.value)}
+                    style={{ width: '100%', height: 48, padding: '0 16px', border: '1px solid #e8e4d0', borderRadius: 10, fontSize: 15, outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 13, color: '#794f27', fontWeight: 600, marginBottom: 8, display: 'block' }}>密码</label>
+                  <input placeholder='请输入密码' type='password' value={password} onChange={e => setPassword(e.target.value)}
+                    style={{ width: '100%', height: 48, padding: '0 16px', border: '1px solid #e8e4d0', borderRadius: 10, fontSize: 15, outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                {error && <div style={{ color: '#e53e3e', fontSize: 13, background: '#fff5f5', padding: '10px 14px', borderRadius: 8 }}>{error}</div>}
+                <button onClick={handleLogin} disabled={loading}
+                  style={{
+                    width: '100%', height: 48, background: loading ? '#ccc' : '#19c8b9', color: '#fff',
+                    border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700,
+                    cursor: loading ? 'not-allowed' : 'pointer'
+                  }}>
+                  {loading ? '登录中...' : '登 录'}
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                <div>
+                  <label style={{ fontSize: 13, color: '#794f27', fontWeight: 600, marginBottom: 8, display: 'block' }}>手机号</label>
+                  <input placeholder='请输入手机号' value={phone} onChange={e => setPhone(e.target.value)}
+                    style={{ width: '100%', height: 48, padding: '0 16px', border: '1px solid #e8e4d0', borderRadius: 10, fontSize: 15, outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 13, color: '#794f27', fontWeight: 600, marginBottom: 8, display: 'block' }}>设置密码</label>
+                  <input placeholder='请设置6位以上密码' type='password' value={password} onChange={e => setPassword(e.target.value)}
+                    style={{ width: '100%', height: 48, padding: '0 16px', border: '1px solid #e8e4d0', borderRadius: 10, fontSize: 15, outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                {error && <div style={{ color: '#e53e3e', fontSize: 13, background: '#fff5f5', padding: '10px 14px', borderRadius: 8 }}>{error}</div>}
+                <button onClick={handleRegister} disabled={loading}
+                  style={{
+                    width: '100%', height: 48, background: loading ? '#ccc' : '#19c8b9', color: '#fff',
+                    border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700,
+                    cursor: loading ? 'not-allowed' : 'pointer'
+                  }}>
+                  {loading ? '注册中...' : '注 册'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );
